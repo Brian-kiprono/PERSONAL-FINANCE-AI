@@ -1,5 +1,5 @@
 # Generate requirements.txt
-pip freeze > requirements.txt
+
 
 # Or create manually with versions
 cat > requirements.txt << 'EOF'
