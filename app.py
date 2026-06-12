@@ -19,6 +19,23 @@ from plotly.utils import PlotlyJSONEncoder
 import json
 from threading import Lock
 import time
+# Add at the top of app.py
+from config import get_config
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+
+# Get configuration
+config = get_config()
+app.config.from_object(config)
+
+# Use environment variable for secret key
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+
+# Database path from environment
+db = Database(os.environ.get('DATABASE_PATH', 'finance.db'))
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = secrets.token_hex(16)

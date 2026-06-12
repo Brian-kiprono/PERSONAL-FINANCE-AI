@@ -1,3 +1,4 @@
+# Create .gitignore file
 cat > .gitignore << 'EOF'
 # Python
 __pycache__/
@@ -5,22 +6,26 @@ __pycache__/
 *$py.class
 *.so
 .Python
-venv/
 env/
+venv/
 ENV/
 env.bak/
 venv.bak/
+pythonenv*
 
 # Database
 *.db
-*.db-wal
-*.db-shm
 *.sqlite
 *.sqlite3
+*.db-wal
+*.db-shm
+*.db-journal
 
 # Flask
 instance/
 .webassets-cache
+.env
+.flaskenv
 
 # IDE
 .vscode/
@@ -29,27 +34,52 @@ instance/
 *.swo
 *~
 .DS_Store
+Thumbs.db
 
 # Logs
 *.log
-*.csv
-*.xlsx
+*.pid
 
-# Environment
-.env
+# Local configuration
+config.local.py
+settings.local.py
 .env.local
 
-# Testing
+# Test files
 .pytest_cache/
 .coverage
 htmlcov/
 
-# OS
-Thumbs.db
-Desktop.ini
+# Virtual Environment
+venv/
+venv_*/
+lib/
+lib64/
+include/
+bin/
+share/
 
-# Project specific
-static/uploads/
-temp/
-backup/
+# Secret keys
+*.key
+*.pem
+*.crt
+
+# Backup files
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Application specific
+finance.db
+*.csv
+*.xlsx
+*.xls
+
+# Cache
+.cache/
+*.cache
 EOF
