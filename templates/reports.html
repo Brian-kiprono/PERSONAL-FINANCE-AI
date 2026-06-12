@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="reports-container">
+    <h1 class="page-title"><i class="fas fa-file-alt"></i> Monthly Reports</h1>
+    
+    <div class="glass-card">
+        <div class="row">
+            <div class="col-md-4">
+                <label>Select Month</label>
+                <input type="month" id="report-month" class="form-control glass-input">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary mt-4" onclick="loadReport()">
+                    <i class="fas fa-chart-line"></i> Generate
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="glass-card">
+                <h5><i class="fas fa-dollar-sign"></i> Summary</h5>
+                <div id="report-summary"></div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="glass-card">
+                <h5><i class="fas fa-chart-pie"></i> Category Breakdown</h5>
+                <div id="report-chart"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let reportChart = null;
+
+async function loadReport() {
+    const monthInput = document.getElementById('report-month').value;
+    let year, month;
+    
+    if (monthInput) {
+        [year, month] = monthInput.split('-');
+    } else {
+        const now = new Date();
+        year = now.getFullYear();
+        month = now.getMonth() + 1;
+    }
+    
+    const response = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
+    const data = await response.json();
+    
+    document.getElementById('report-summary').innerHTML = `
+        <div class="report-item">
+            <strong>Income:</strong> <span class="text-success">$${data.income.toFixed(2)}</span>
+        </div>
+        <div class="report-item">
+            <strong>Expenses:</strong> <span class="text-danger">$${data.expense.toFixed(2)}</span>
+        </div>
+        <div class="report-item">
+            <strong>Savings:</strong> <span class="text-info">$${data.savings.toFixed(2)}</span>
+        </div>
+        <div class="report-item">
+            <strong>Savings Rate:</strong> 
+            ${data.income > 0 ? ((data.savings/data.income)*100).toFixed(1) : 0}%
+        </div>
+    `;
+    
+    const categories = data.categories;
+    const ctx = document.getElementById('report-chart');
+    if (reportChart) {
+        Plotly.purge(ctx);
+    }
+    
+    const trace = {
+        labels: categories.map(c => c.name),
+        values: categories.map(c => c.total),
+        type: 'pie',
+        marker: {
+            colors: categories.map(c => c.color)
+        },
+        textinfo: 'label+percent',
+        hoverinfo: 'label+value+percent'
+    };
+    
+    Plotly.newPlot(ctx, [trace], {
+        title: 'Expense Breakdown',
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: {color: '#fff'}
+    });
+}
+
+document.getElementById('report-month').valueAsDate = new Date();
+loadReport();
+</script>
+{% endblock %}

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="settings-container">
+    <h1 class="page-title"><i class="fas fa-cog"></i> Settings</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5><i class="fas fa-currency-exchange"></i> Currency Settings</h5>
+                <select id="currency-select" class="form-control glass-input">
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="GBP">GBP (£)</option>
+                    <option value="JPY">JPY (¥)</option>
+                    <option value="CAD">CAD ($)</option>
+                    <option value="AUD">AUD ($)</option>
+                </select>
+                <button class="btn btn-primary mt-3" onclick="saveCurrency()">
+                    <i class="fas fa-save"></i> Save Currency
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5><i class="fas fa-database"></i> Data Management</h5>
+                <div class="d-flex gap-2">
+                    <a href="/api/export/csv" class="btn btn-info flex-grow-1">
+                        <i class="fas fa-download"></i> Export CSV
+                    </a>
+                    <a href="/api/export/excel" class="btn btn-success flex-grow-1">
+                        <i class="fas fa-file-excel"></i> Export Excel
+                    </a>
+                </div>
+                <button class="btn btn-danger mt-3 w-100" onclick="confirmReset()">
+                    <i class="fas fa-trash"></i> Delete All Transactions
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadSettings() {
+    const response = await fetch('/api/settings');
+    const settings = await response.json();
+    document.getElementById('currency-select').value = settings.currency || 'USD';
+}
+
+async function saveCurrency() {
+    const currency = document.getElementById('currency-select').value;
+    await fetch('/api/settings', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({currency: currency})
+    });
+    showToast('Currency saved!', 'success');
+}
+
+function confirmReset() {
+    if (confirm('⚠️ This will delete ALL your transactions! Are you sure?')) {
+        fetch('/api/delete_all_transactions', { method: 'DELETE' })
+            .then(() => showToast('All transactions deleted', 'success'));
+    }
+}
+
+loadSettings();
+</script>
+{% endblock %}

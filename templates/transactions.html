@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="transactions-container">
+    <h1 class="page-title">Transactions</h1>
+    
+    <div class="row">
+        <div class="col-md-5">
+            <div class="glass-card">
+                <h5 id="form-title">Add Transaction</h5>
+                <form id="transaction-form">
+                    <input type="hidden" id="edit-id">
+                    <div class="mb-3">
+                        <label>Amount ($)</label>
+                        <input type="number" step="0.01" class="form-control glass-input" id="amount" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Description</label>
+                        <input type="text" class="form-control glass-input" id="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Date</label>
+                        <input type="date" class="form-control glass-input" id="date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Type</label>
+                        <select class="form-control glass-input" id="trans-type">
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Category</label>
+                        <select class="form-control glass-input" id="category"></select>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="cancel-edit" style="display:none;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <div class="glass-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>All Transactions</h5>
+                    <button class="btn btn-danger btn-sm" onclick="deleteAllTransactions()">
+                        <i class="fas fa-trash-alt"></i> Delete All
+                    </button>
+                </div>
+                <div class="table-responsive">
+                    <table class="table" id="transactions-table">
+                        <thead>
+                            <tr><th>Date</th><th>Description</th><th>Category</th><th>Type</th><th>Amount</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentEditId = null;
+
+async function loadCategories() {
+    const response = await fetch('/api/categories');
+    const categories = await response.json();
+    const select = document.getElementById('category');
+    select.innerHTML = '<option value="">Select Category</option>';
+    categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat.id;
+        option.textContent = `${cat.icon} ${cat.name}`;
+        select.appendChild(option);
+    });
+}
+
+async function loadTransactions() {
+    const response = await fetch('/api/transactions?limit=100');
+    const transactions = await response.json();
+    const tbody = document.querySelector('#transactions-table tbody');
+    tbody.innerHTML = '';
+    transactions.forEach(t => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${t.date}</td>
+            <td>${t.description}</td>
+            <td>${t.icon || '📌'} ${t.category_name || 'Uncategorized'}</td>
+            <td><span class="badge ${t.type === 'income' ? 'bg-success' : 'bg-danger'}">${t.type}</span></td>
+            <td class="${t.type === 'income' ? 'text-success' : 'text-danger'}">$${t.amount.toFixed(2)}</td>
+            <td>
+                <button class="btn btn-sm btn-info me-1" onclick="editTransaction(${t.id})"><i class="fas fa-edit"></i></button>
+                <button class="btn btn-sm btn-danger" onclick="deleteTransaction(${t.id})"><i class="fas fa-trash"></i></button>
+            </td>
+        `;
+    });
+}
+
+async function editTransaction(id) {
+    const response = await fetch(`/api/transactions?id=${id}`);
+    const t = await response.json();
+    
+    currentEditId = t.id;
+    document.getElementById('edit-id').value = t.id;
+    document.getElementById('amount').value = t.amount;
+    document.getElementById('description').value = t.description;
+    document.getElementById('date').value = t.date;
+    document.getElementById('trans-type').value = t.type;
+    document.getElementById('category').value = t.category_id || '';
+    document.getElementById('form-title').innerHTML = '<i class="fas fa-edit"></i> Edit Transaction';
+    document.getElementById('cancel-edit').style.display = 'inline-block';
+}
+
+async function deleteTransaction(id) {
+    if (confirm('Delete this transaction?')) {
+        await fetch(`/api/transactions/${id}`, { method: 'DELETE' });
+        loadTransactions();
+        showToast('Transaction deleted', 'success');
+    }
+}
+
+async function deleteAllTransactions() {
+    if (confirm('⚠️ Delete ALL transactions? This cannot be undone!')) {
+        await fetch('/api/delete_all_transactions', { method: 'DELETE' });
+        loadTransactions();
+        showToast('All transactions deleted', 'success');
+    }
+}
+
+function cancelEdit() {
+    currentEditId = null;
+    document.getElementById('transaction-form').reset();
+    document.getElementById('edit-id').value = '';
+    document.getElementById('form-title').innerHTML = '<i class="fas fa-plus"></i> Add Transaction';
+    document.getElementById('cancel-edit').style.display = 'none';
+}
+
+document.getElementById('transaction-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const transaction = {
+        amount: parseFloat(document.getElementById('amount').value),
+        description: document.getElementById('description').value,
+        date: document.getElementById('date').value,
+        category_id: parseInt(document.getElementById('category').value) || null,
+        type: document.getElementById('trans-type').value
+    };
+    
+    const editId = document.getElementById('edit-id').value;
+    let response;
+    
+    if (editId) {
+        response = await fetch(`/api/transactions/${editId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(transaction)
+        });
+        showToast('Transaction updated', 'success');
+        cancelEdit();
+    } else {
+        response = await fetch('/api/transactions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(transaction)
+        });
+        showToast('Transaction added', 'success');
+    }
+    
+    if (response.ok) {
+        e.target.reset();
+        loadTransactions();
+    }
+});
+
+document.getElementById('cancel-edit').addEventListener('click', cancelEdit);
+document.getElementById('date').valueAsDate = new Date();
+
+loadCategories();
+loadTransactions();
+</script>
+{% endblock %}

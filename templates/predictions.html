@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="predictions-container">
+    <h1 class="page-title"><i class="fas fa-brain"></i> AI Predictions & Recommendations</h1>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5><i class="fas fa-chart-line"></i> Spending Predictions</h5>
+                <div id="predictions-chart"></div>
+                <div id="trend-indicator" class="mt-3"></div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5><i class="fas fa-lightbulb"></i> Smart Recommendations</h5>
+                <div id="recommendations-list"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="glass-card">
+                <h5><i class="fas fa-chart-simple"></i> Savings Analysis</h5>
+                <div id="savings-analysis"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadPredictions() {
+    const response = await fetch('/api/predictions');
+    const data = await response.json();
+    
+    const trendDiv = document.getElementById('trend-indicator');
+    if (data.trend === 'increasing') {
+        trendDiv.innerHTML = '<div class="alert alert-warning">⚠️ Spending trend is INCREASING - consider reviewing your expenses</div>';
+    } else if (data.trend === 'decreasing') {
+        trendDiv.innerHTML = '<div class="alert alert-success">✅ Good job! Spending trend is DECREASING</div>';
+    } else if (data.trend === 'insufficient_data') {
+        trendDiv.innerHTML = '<div class="alert alert-info">📊 Add more transactions for accurate predictions (need at least 3 months)</div>';
+    }
+    
+    if (data.predictions && data.predictions.length > 0) {
+        const months = data.predictions.map(p => p.month);
+        const values = data.predictions.map(p => p.predicted_spending);
+        
+        const trace = {
+            x: months,
+            y: values,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {color: '#e74c3c', width: 3},
+            marker: {size: 10, color: '#e74c3c'}
+        };
+        
+        Plotly.newPlot('predictions-chart', [trace], {
+            title: 'Predicted Monthly Spending',
+            xaxis: {title: 'Month', gridcolor: 'rgba(255,255,255,0.1)'},
+            yaxis: {title: 'Amount ($)', gridcolor: 'rgba(255,255,255,0.1)'},
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: '#fff'}
+        });
+    }
+}
+
+async function loadRecommendations() {
+    const response = await fetch('/api/recommendations');
+    const recommendations = await response.json();
+    
+    const container = document.getElementById('recommendations-list');
+    if (recommendations.length === 0) {
+        container.innerHTML = '<div class="alert alert-info">Add more transactions to get AI recommendations</div>';
+        return;
+    }
+    
+    container.innerHTML = recommendations.map(rec => `
+        <div class="recommendation-item">
+            <div class="rec-icon">${rec.icon}</div>
+            <div class="rec-content">
+                <strong>${rec.category_name}</strong><br>
+                Current: $${rec.current_spending.toFixed(2)} | 
+                Recommended: $${rec.recommended_budget.toFixed(2)}<br>
+                <small>${rec.reason} (${rec.percentage_of_total}% of total)</small>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function loadSavingsAnalysis() {
+    const response = await fetch('/api/savings_analysis');
+    const analysis = await response.json();
+    
+    const container = document.getElementById('savings-analysis');
+    container.innerHTML = `
+        <div class="row">
+            <div class="col-md-3">
+                <div class="analysis-card">
+                    <h6>3-Month Income</h6>
+                    <h4>$${analysis.total_income_3m?.toFixed(2) || 0}</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="analysis-card">
+                    <h6>3-Month Expenses</h6>
+                    <h4>$${analysis.total_expenses_3m?.toFixed(2) || 0}</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="analysis-card">
+                    <h6>Total Savings</h6>
+                    <h4>$${analysis.savings?.toFixed(2) || 0}</h4>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="analysis-card">
+                    <h6>Savings Rate</h6>
+                    <h4>${analysis.savings_rate || 0}%</h4>
+                </div>
+            </div>
+        </div>
+        <div class="mt-3">
+            <strong>💡 Tips:</strong>
+            <ul>
+                ${analysis.tips?.map(tip => `<li>${tip}</li>`).join('') || '<li>Keep tracking your expenses!</li>'}
+            </ul>
+        </div>
+    `;
+}
+
+loadPredictions();
+loadRecommendations();
+loadSavingsAnalysis();
+</script>
+{% endblock %}

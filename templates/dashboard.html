@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="dashboard-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="page-title mb-0">
+            <i class="fas fa-chart-pie"></i> Financial Dashboard
+        </h1>
+        <div class="live-badge">
+            <span class="badge bg-success">
+                <i class="fas fa-circle" style="font-size: 8px; animation: pulse 1s infinite;"></i>
+                LIVE
+            </span>
+            <small class="text-muted ms-2" id="last-updated">Updating...</small>
+        </div>
+    </div>
+    
+    <div class="row stats-row g-3 g-md-4">
+        <div class="col-6 col-md-3">
+            <div class="glass-card stat-card">
+                <i class="fas fa-arrow-up income-icon"></i>
+                <h6 class="text-muted mb-2">Monthly Income</h6>
+                <h2 id="monthly-income" class="mb-2">$0</h2>
+                <small class="trend-up">Real-time</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="glass-card stat-card">
+                <i class="fas fa-arrow-down expense-icon"></i>
+                <h6 class="text-muted mb-2">Monthly Expenses</h6>
+                <h2 id="monthly-expense" class="mb-2">$0</h2>
+                <small class="trend-down">Real-time</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="glass-card stat-card">
+                <i class="fas fa-piggy-bank savings-icon"></i>
+                <h6 class="text-muted mb-2">Monthly Savings</h6>
+                <h2 id="monthly-savings" class="mb-2">$0</h2>
+                <small>Save more to invest</small>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="glass-card stat-card">
+                <i class="fas fa-chart-line avg-icon"></i>
+                <h6 class="text-muted mb-2">Real-time Status</h6>
+                <h2 id="realtime-status" class="mb-2">🟢</h2>
+                <small>Connected</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 g-md-4 mt-2">
+        <div class="col-12 col-lg-8">
+            <div class="glass-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-chart-line"></i> Spending Trend (Real-time)
+                    <button class="btn btn-sm btn-outline-primary ms-2" onclick="requestManualUpdate()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </h5>
+                <div id="spending-chart" style="height: 400px;"></div>
+            </div>
+        </div>
+        <div class="col-12 col-lg-4">
+            <div class="glass-card">
+                <h5 class="mb-3"><i class="fas fa-chart-pie"></i> Expense Breakdown</h5>
+                <div id="pie-chart" style="height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 g-md-4 mt-2">
+        <div class="col-12">
+            <div class="glass-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-history"></i> Recent Transactions 
+                    <small class="text-muted">(Updates in real-time)</small>
+                </h5>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="recent-transactions">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Description</th>
+                                <th>Category</th>
+                                <th>Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="4" class="text-center">Loading transactions...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+<script>
+// Initialize Socket.IO connection
+const socket = io();
+
+// Connection status
+socket.on('connect', function() {
+    console.log('Connected to real-time server');
+    document.getElementById('realtime-status').innerHTML = '🟢';
+    document.getElementById('realtime-status').parentElement.innerHTML += '<small>Connected</small>';
+    showToast('Connected to real-time updates', 'success');
+});
+
+socket.on('disconnect', function() {
+    console.log('Disconnected from server');
+    document.getElementById('realtime-status').innerHTML = '🔴';
+    showToast('Disconnected from real-time updates', 'error');
+});
+
+// Handle real-time updates
+socket.on('realtime_update', function(data) {
+    console.log('Real-time update received:', data);
+    updateDashboard(data);
+});
+
+socket.on('immediate_update', function(data) {
+    console.log('Immediate update received:', data);
+    updateDashboard(data);
+});
+
+function updateDashboard(data) {
+    // Update stats
+    if (data.current_income !== undefined) {
+        document.getElementById('monthly-income').innerHTML = `$${data.current_income.toFixed(2)}`;
+    }
+    if (data.current_expense !== undefined) {
+        document.getElementById('monthly-expense').innerHTML = `$${data.current_expense.toFixed(2)}`;
+    }
+    if (data.current_savings !== undefined) {
+        document.getElementById('monthly-savings').innerHTML = `$${data.current_savings.toFixed(2)}`;
+    }
+    
+    // Update last updated time
+    if (data.last_updated) {
+        document.getElementById('last-updated').innerHTML = `Last: ${data.last_updated}`;
+    }
+    
+    // Update charts if provided
+    if (data.pie_chart) {
+        Plotly.newPlot('pie-chart', JSON.parse(data.pie_chart).data, JSON.parse(data.pie_chart).layout, {responsive: true});
+    }
+    
+    if (data.line_chart) {
+        Plotly.newPlot('spending-chart', JSON.parse(data.line_chart).data, JSON.parse(data.line_chart).layout, {responsive: true});
+    }
+    
+    // Update recent transactions
+    if (data.recent_transactions && data.recent_transactions.length > 0) {
+        const tbody = document.querySelector('#recent-transactions tbody');
+        tbody.innerHTML = '';
+        data.recent_transactions.forEach(t => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td data-label="Date">${t.date}</td>
+                <td data-label="Description">${t.description}</td>
+                <td data-label="Category">${t.icon || '📌'} ${t.category_name || 'Uncategorized'}</td>
+                <td data-label="Amount" class="${t.type === 'income' ? 'text-success' : 'text-danger'}">$${t.amount.toFixed(2)}</td>
+            `;
+        });
+    }
+    
+    // Add animation effect to updated elements
+    document.querySelectorAll('.stat-card h2').forEach(el => {
+        el.style.animation = 'none';
+        el.offsetHeight; // Trigger reflow
+        el.style.animation = 'pulse 0.5s ease';
+    });
+}
+
+function requestManualUpdate() {
+    socket.emit('request_update');
+    showToast('Requesting latest data...', 'info');
+}
+
+// Initial data load
+async function initialLoad() {
+    try {
+        const response = await fetch('/api/stats');
+        const stats = await response.json();
+        
+        document.getElementById('monthly-income').innerHTML = `$${stats.current_month_income.toFixed(2)}`;
+        document.getElementById('monthly-expense').innerHTML = `$${stats.current_month_expense.toFixed(2)}`;
+        document.getElementById('monthly-savings').innerHTML = `$${stats.current_month_savings.toFixed(2)}`;
+        
+        // Load initial charts
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = now.getMonth() + 1;
+        
+        const reportResponse = await fetch(`/api/monthly_report?year=${year}&month=${month}`);
+        const report = await reportResponse.json();
+        
+        // Create initial pie chart
+        if (report.categories && report.categories.length > 0) {
+            const pieData = [{
+                values: report.categories.map(c => c.total),
+                labels: report.categories.map(c => c.name),
+                type: 'pie',
+                hole: 0.3,
+                marker: {colors: report.categories.map(c => c.color)},
+                textinfo: 'label+percent',
+                textposition: 'auto'
+            }];
+            
+            const pieLayout = {
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                font: {color: 'white'},
+                showlegend: true,
+                legend: {font: {color: 'white'}}
+            };
+            
+            Plotly.newPlot('pie-chart', pieData, pieLayout, {responsive: true});
+        }
+        
+        // Create initial line chart
+        const last6Months = [];
+        const monthlyTotals = [];
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            const monthName = d.toLocaleString('default', { month: 'short' }) + ' ' + d.getFullYear();
+            last6Months.push(monthName);
+            
+            const monthData = await fetch(`/api/monthly_report?year=${d.getFullYear()}&month=${d.getMonth() + 1}`);
+            const monthReport = await monthData.json();
+            monthlyTotals.push(monthReport.expense);
+        }
+        
+        const lineData = [{
+            x: last6Months,
+            y: monthlyTotals,
+            type: 'scatter',
+            mode: 'lines+markers',
+            line: {color: '#3b82f6', width: 3},
+            marker: {size: 8, color: '#6366f1'},
+            fill: 'tozeroy',
+            fillcolor: 'rgba(99, 102, 241, 0.1)'
+        }];
+        
+        const lineLayout = {
+            paper_bgcolor: 'rgba(0,0,0,0)',
+            plot_bgcolor: 'rgba(0,0,0,0)',
+            font: {color: 'white'},
+            xaxis: {gridcolor: 'rgba(255,255,255,0.1)'},
+            yaxis: {gridcolor: 'rgba(255,255,255,0.1)', title: 'Amount ($)'},
+            hovermode: 'x unified'
+        };
+        
+        Plotly.newPlot('spending-chart', lineData, lineLayout, {responsive: true});
+        
+        // Load transactions
+        const transResponse = await fetch('/api/transactions?limit=10');
+        const transactions = await transResponse.json();
+        const tbody = document.querySelector('#recent-transactions tbody');
+        tbody.innerHTML = '';
+        transactions.slice(0, 5).forEach(t => {
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td data-label="Date">${t.date}</td>
+                <td data-label="Description">${t.description}</td>
+                <td data-label="Category">${t.icon || '📌'} ${t.category_name || 'Uncategorized'}</td>
+                <td data-label="Amount" class="${t.type === 'income' ? 'text-success' : 'text-danger'}">$${t.amount.toFixed(2)}</td>
+            `;
+        });
+        
+    } catch (error) {
+        console.error('Error loading initial data:', error);
+    }
+}
+
+// Start everything
+document.addEventListener('DOMContentLoaded', () => {
+    initialLoad();
+    
+    // Add pulse animation
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); background: rgba(99, 102, 241, 0.2); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+    `;
+    document.head.appendChild(style);
+});
+
+function showToast(message, type) {
+    // Toast implementation
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification';
+    toast.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'}" 
+               style="color: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(15, 23, 42, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 12px 20px;
+        border-radius: 12px;
+        color: white;
+        z-index: 10000;
+        animation: slideInRight 0.3s ease;
+        border-left: 3px solid ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+    `;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="categories-container">
+    <h1 class="page-title">Manage Categories</h1>
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="glass-card">
+                <h5 id="cat-form-title">Add Category</h5>
+                <form id="category-form">
+                    <input type="hidden" id="edit-cat-id">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input type="text" class="form-control glass-input" id="cat-name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Type</label>
+                        <select class="form-control glass-input" id="cat-type" required>
+                            <option value="expense">Expense</option>
+                            <option value="income">Income</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label>Color</label>
+                        <input type="color" class="form-control" id="cat-color" value="#3b82f6">
+                    </div>
+                    <div class="mb-3">
+                        <label>Icon (emoji)</label>
+                        <input type="text" class="form-control glass-input" id="cat-icon" value="📌" maxlength="2">
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-save"></i> Save
+                        </button>
+                        <button type="button" class="btn btn-secondary" id="cancel-cat-edit" style="display:none;">
+                            <i class="fas fa-times"></i> Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="glass-card">
+                <h5>Income Categories</h5>
+                <div id="income-categories" class="category-grid"></div>
+                
+                <h5 class="mt-4">Expense Categories</h5>
+                <div id="expense-categories" class="category-grid"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentEditCatId = null;
+
+async function loadCategories() {
+    const response = await fetch('/api/categories');
+    const categories = await response.json();
+    
+    const incomeDiv = document.getElementById('income-categories');
+    const expenseDiv = document.getElementById('expense-categories');
+    incomeDiv.innerHTML = '';
+    expenseDiv.innerHTML = '';
+    
+    categories.forEach(cat => {
+        const card = `
+            <div class="category-card" style="border-left-color: ${cat.color}">
+                <div class="category-icon">${cat.icon}</div>
+                <div class="category-name">${cat.name}</div>
+                <div class="category-actions mt-2">
+                    <button class="btn btn-sm btn-info" onclick="editCategory(${cat.id})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteCategory(${cat.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        if (cat.type === 'income') {
+            incomeDiv.innerHTML += card;
+        } else {
+            expenseDiv.innerHTML += card;
+        }
+    });
+}
+
+async function editCategory(id) {
+    const response = await fetch(`/api/categories?id=${id}`);
+    const cat = await response.json();
+    
+    currentEditCatId = cat.id;
+    document.getElementById('edit-cat-id').value = cat.id;
+    document.getElementById('cat-name').value = cat.name;
+    document.getElementById('cat-type').value = cat.type;
+    document.getElementById('cat-color').value = cat.color;
+    document.getElementById('cat-icon').value = cat.icon;
+    document.getElementById('cat-form-title').innerHTML = 'Edit Category';
+    document.getElementById('cancel-cat-edit').style.display = 'inline-block';
+}
+
+async function deleteCategory(id) {
+    if (confirm('Delete this category? Transactions will be uncategorized.')) {
+        await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+        loadCategories();
+        showToast('Category deleted', 'success');
+    }
+}
+
+function cancelCatEdit() {
+    currentEditCatId = null;
+    document.getElementById('category-form').reset();
+    document.getElementById('edit-cat-id').value = '';
+    document.getElementById('cat-color').value = '#3b82f6';
+    document.getElementById('cat-icon').value = '📌';
+    document.getElementById('cat-form-title').innerHTML = 'Add Category';
+    document.getElementById('cancel-cat-edit').style.display = 'none';
+}
+
+document.getElementById('category-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const category = {
+        name: document.getElementById('cat-name').value,
+        type: document.getElementById('cat-type').value,
+        color: document.getElementById('cat-color').value,
+        icon: document.getElementById('cat-icon').value
+    };
+    
+    const editId = document.getElementById('edit-cat-id').value;
+    let response;
+    
+    if (editId) {
+        response = await fetch(`/api/categories/${editId}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(category)
+        });
+        showToast('Category updated', 'success');
+        cancelCatEdit();
+    } else {
+        response = await fetch('/api/categories', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(category)
+        });
+        showToast('Category added', 'success');
+    }
+    
+    if (response.ok) {
+        e.target.reset();
+        document.getElementById('cat-color').value = '#3b82f6';
+        document.getElementById('cat-icon').value = '📌';
+        loadCategories();
+    }
+});
+
+document.getElementById('cancel-cat-edit').addEventListener('click', cancelCatEdit);
+
+loadCategories();
+</script>
+{% endblock %}

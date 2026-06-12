@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="visualizations-container">
+    <h1 class="page-title">Advanced Visualizations</h1>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="glass-card">
+                <h5>Interactive Visualization Gallery</h5>
+                <p class="text-muted">Matplotlib, Seaborn & Plotly powered analytics</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5>Spending Heatmap (Daily Pattern)</h5>
+                <div id="heatmap-container" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5>Spending Forecast</h5>
+                <div id="forecast-container" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5>Correlation Analysis</h5>
+                <div id="correlation-container" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="glass-card">
+                <h5>Category Treemap</h5>
+                <div id="treemap-container" class="text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadHeatmap() {
+    try {
+        const response = await fetch('/api/visualization/heatmap');
+        const data = await response.json();
+        if (data.image) {
+            document.getElementById('heatmap-container').innerHTML = 
+                `<img src="${data.image}" class="img-fluid rounded" alt="Heatmap">`;
+        } else {
+            document.getElementById('heatmap-container').innerHTML = 
+                '<div class="alert alert-info">No data available for heatmap</div>';
+        }
+    } catch (error) {
+        document.getElementById('heatmap-container').innerHTML = 
+            '<div class="alert alert-warning">Unable to load heatmap</div>';
+    }
+}
+
+async function loadForecast() {
+    try {
+        const response = await fetch('/api/visualization/forecast');
+        const data = await response.json();
+        if (data.image) {
+            document.getElementById('forecast-container').innerHTML = 
+                `<img src="${data.image}" class="img-fluid rounded" alt="Forecast">`;
+        } else {
+            document.getElementById('forecast-container').innerHTML = 
+                '<div class="alert alert-info">Add more transactions for forecast</div>';
+        }
+    } catch (error) {
+        document.getElementById('forecast-container').innerHTML = 
+            '<div class="alert alert-warning">Need at least 3 months of data</div>';
+    }
+}
+
+async function loadCorrelation() {
+    try {
+        const response = await fetch('/api/visualization/correlation');
+        const data = await response.json();
+        if (data.image) {
+            document.getElementById('correlation-container').innerHTML = 
+                `<img src="${data.image}" class="img-fluid rounded" alt="Correlation">`;
+        } else {
+            document.getElementById('correlation-container').innerHTML = 
+                '<div class="alert alert-info">Insufficient data for correlation</div>';
+        }
+    } catch (error) {
+        document.getElementById('correlation-container').innerHTML = 
+            '<div class="alert alert-warning">Unable to load correlation</div>';
+    }
+}
+
+async function loadTreemap() {
+    try {
+        const response = await fetch('/api/visualization/treemap');
+        const data = await response.json();
+        if (data.html) {
+            document.getElementById('treemap-container').innerHTML = data.html;
+        } else {
+            document.getElementById('treemap-container').innerHTML = 
+                '<div class="alert alert-info">No category data available</div>';
+        }
+    } catch (error) {
+        document.getElementById('treemap-container').innerHTML = 
+            '<div class="alert alert-warning">Unable to load treemap</div>';
+    }
+}
+
+// Load all visualizations
+loadHeatmap();
+loadForecast();
+loadCorrelation();
+loadTreemap();
+</script>
+{% endblock %}
