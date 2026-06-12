@@ -1,19 +1,21 @@
-cat > requirements.txt << 'EOF'
-Flask==2.3.3
-Flask-SQLAlchemy==3.0.5
-Flask-Caching==2.1.0
-Flask-SocketIO==5.3.4
-python-socketio==5.9.0
-eventlet==0.33.3
-pandas==2.1.4
-numpy==1.26.3
-plotly==5.18.0
-scikit-learn==1.3.2
-python-dateutil==2.8.2
-matplotlib==3.8.2
-seaborn==0.13.0
-openpyxl==3.1.2
-xlwt==1.3.0
-python-dotenv==1.0.0
-gunicorn==21.2.0
-EOF
+# Create empty file
+> requirements.txt
+
+# Add each line one by one
+echo "Flask==2.3.3" >> requirements.txt
+echo "Flask-SQLAlchemy==3.0.5" >> requirements.txt
+echo "Flask-Caching==2.1.0" >> requirements.txt
+echo "Flask-SocketIO==5.3.4" >> requirements.txt
+echo "python-socketio==5.9.0" >> requirements.txt
+echo "eventlet==0.33.3" >> requirements.txt
+echo "pandas==2.1.4" >> requirements.txt
+echo "numpy==1.26.3" >> requirements.txt
+echo "plotly==5.18.0" >> requirements.txt
+echo "scikit-learn==1.3.2" >> requirements.txt
+echo "python-dateutil==2.8.2" >> requirements.txt
+echo "matplotlib==3.8.2" >> requirements.txt
+echo "seaborn==0.13.0" >> requirements.txt
+echo "openpyxl==3.1.2" >> requirements.txt
+echo "xlwt==1.3.0" >> requirements.txt
+echo "python-dotenv==1.0.0" >> requirements.txt
+echo "gunicorn==21.2.0" >> requirements.txt
